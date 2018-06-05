@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search> 
+  
+    
+    <entry>
+      <title>react项目结构介绍，以及react基础</title>
+      <link href="/2018/06/05/hello-world/"/>
+      <url>/2018/06/05/hello-world/</url>
+      <content type="html"><![CDATA[<h2 id="快速开始"><a href="#快速开始" class="headerlink" title="快速开始"></a>快速开始</h2><h3 id="项目结构"><a href="#项目结构" class="headerlink" title="项目结构"></a>项目结构</h3><ul><li>build （打包后资源目录）</li><li>public （公用模板）</li><li>src （主要内容目录）<ul><li>api （api借口）</li><li>assets （资源文件目录，js，css，图片）</li><li>components （公用组件）</li><li>config （配置文件）</li><li>pages （页面文件）</li><li>router （路由配置）</li></ul></li><li>.gitignore</li><li>package.json</li></ul><h3 id="语法规范"><a href="#语法规范" class="headerlink" title="语法规范"></a>语法规范</h3><ol><li>文件夹目录小写</li><li>驼峰命名-首字母小写</li><li>命名用英文全屏，如果太长可以适当缩写一部分</li></ol><h3 id="常用命令"><a href="#常用命令" class="headerlink" title="常用命令"></a>常用命令</h3><h4 id="拉去代码"><a href="#拉去代码" class="headerlink" title="拉去代码"></a>拉去代码</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ git <span class="built_in">clone</span> https://gitee.com/ht1131589588/[项目名].git</span><br></pre></td></tr></table></figure><h4 id="安装依赖"><a href="#安装依赖" class="headerlink" title="安装依赖"></a>安装依赖</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ npm install</span><br></pre></td></tr></table></figure><p>建议安装cnpm，用法同npm<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ npm install -g cnpm --registry=https://registry.npm.taobao.org</span><br><span class="line">$ cnpm install</span><br></pre></td></tr></table></figure></p><h4 id="本地运行"><a href="#本地运行" class="headerlink" title="本地运行"></a>本地运行</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ npm start</span><br></pre></td></tr></table></figure><h4 id="scss编译"><a href="#scss编译" class="headerlink" title="scss编译"></a>scss编译</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ npm run watch-css</span><br></pre></td></tr></table></figure><h4 id="打包编译"><a href="#打包编译" class="headerlink" title="打包编译"></a>打包编译</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ npm run build</span><br></pre></td></tr></table></figure><h3 id="文档参考"><a href="#文档参考" class="headerlink" title="文档参考"></a>文档参考</h3><ul><li><a href="https://doc.react-china.org/" target="_blank" rel="noopener">React参考文档</a></li><li><a href="https://www.kancloud.cn/yunye/axios/234845" target="_blank" rel="noopener">Axios参考文档</a></li><li><a href="https://www.sass.hk/docs/" target="_blank" rel="noopener">Sass参考文档</a></li><li><a href="https://mobile.ant.design/docs/react/use-with-create-react-app-cn" target="_blank" rel="noopener">Ant-mobile组件</a></li></ul>]]></content>
+      
+      
+    </entry>
+    
+  
+  
+    
+  
+</search>
