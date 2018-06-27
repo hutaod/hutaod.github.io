@@ -3,6 +3,15 @@
   
     
     <entry>
+      <title>css设计模式</title>
+      <link href="/2018/06/27/css-model/"/>
+      <url>/2018/06/27/css-model/</url>
+      <content type="html"><![CDATA[<h3 id="感言"><a href="#感言" class="headerlink" title="感言"></a>感言</h3><p>前端工作两年多，今天面试才发现css也有成型的设计默认，是我以前把css想的太简单了</p><h2 id="OOCSS-面向对象的CSS"><a href="#OOCSS-面向对象的CSS" class="headerlink" title="OOCSS 面向对象的CSS"></a>OOCSS 面向对象的CSS</h2><p>不多说，直接上链接，下面是一篇介绍OOCSS概念的一篇文章<br><a href="https://doc.react-china.org/" target="_blank" rel="noopener">OOCSS——概念篇</a></p>]]></content>
+      
+      
+    </entry>
+    
+    <entry>
       <title>react项目结构介绍，以及react基础</title>
       <link href="/2018/06/05/hello-world/"/>
       <url>/2018/06/05/hello-world/</url>
