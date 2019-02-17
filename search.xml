@@ -6,7 +6,7 @@
       <title>centos7服务器中nginx、mysql常用命令</title>
       <link href="/2019/02/16/centos7%E6%9C%8D%E5%8A%A1%E5%99%A8%E4%B8%ADnginx%E3%80%81mysql%E5%B8%B8%E7%94%A8%E5%91%BD%E4%BB%A4/"/>
       <url>/2019/02/16/centos7%E6%9C%8D%E5%8A%A1%E5%99%A8%E4%B8%ADnginx%E3%80%81mysql%E5%B8%B8%E7%94%A8%E5%91%BD%E4%BB%A4/</url>
-      <content type="html"><![CDATA[<h3 id="mysql常用命令"><a href="#mysql常用命令" class="headerlink" title="mysql常用命令"></a>mysql常用命令</h3><p>启动 systemctl start mysqld<br>停止 systemctl stop mysqld<br>重启 systemctl restart mysqld</p><h3 id="nginx常用命令"><a href="#nginx常用命令" class="headerlink" title="nginx常用命令"></a>nginx常用命令</h3><p>启动 systemctl start nginx<br>停止 systemctl stop nginx<br>重启 systemctl restart nginx</p><p>在/etc/nginx/conf.d目录，测试ningx是否正确 nginx -t</p><p>参考地址：<br><a href="https://blog.csdn.net/nuli888/article/details/51870046" target="_blank" rel="noopener">centos7重启apache、nginx、mysql、php-fpm命令</a></p>]]></content>
+      <content type="html"><![CDATA[<h3 id="mysql常用命令"><a href="#mysql常用命令" class="headerlink" title="mysql常用命令"></a>mysql常用命令</h3><p>启动 systemctl start mysqld<br>停止 systemctl stop mysqld<br>重启 systemctl restart mysqld</p><h3 id="nginx常用命令"><a href="#nginx常用命令" class="headerlink" title="nginx常用命令"></a>nginx常用命令</h3><p>启动 systemctl start nginx<br>停止 systemctl stop nginx<br>重启 systemctl restart nginx</p><p>在/etc/nginx/conf.d目录，测试nginx是否正确 nginx -t</p><p>参考地址：<br><a href="https://blog.csdn.net/nuli888/article/details/51870046" target="_blank" rel="noopener">centos7重启apache、nginx、mysql、php-fpm命令</a></p>]]></content>
       
       
     </entry>
