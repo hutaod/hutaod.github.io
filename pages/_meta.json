@@ -1,0 +1,14 @@
+{
+  "index": {
+    "title": "首页",
+    "type": "page"
+  },
+  "blog": {
+    "title": "博客",
+    "type": "page"
+  },
+  "docs": {
+    "title": "合集",
+    "type": "page"
+  }
+}
