@@ -1,0 +1,55 @@
+# promisify代码实现
+
+`promisify`是 node 的 utils 模块中的一个函数，它作用就是为了转换最后一个参数是回调函数的函数为 promise 函数，且回调函数中有两个参数：`error` 和 `data`
+
+## 使用
+
+使用方法如下:
+
+```javascript
+// 使用前
+fs.readFile('./index.js', (err, data) => {
+  if (!err) {
+    console.log(data.toString())
+  }
+  console.log(err)
+})
+// 使用promisify后
+const readFile = promisify(fs.readFile)
+readFile('./index.js')
+  .then(data => {
+    console.log(data.toString())
+  })
+  .catch(err => {
+    console.log('error:', err)
+  })
+```
+
+## 实现
+
+下面来实现一下 `promisify` 函数
+
+```javascript
+// const newFn = promisify(fn)
+// newFn(a) 会执行Promise参数方法
+function promisify(fn) {
+  return function (...args) {
+    // 返回promise的实例
+    return new Promise(function (reslove, reject) {
+      // newFn(a) 时会执行到这里向下执行
+      // 加入参数cb => newFn(a)
+      args.push(function (err, data) {
+        if (err) {
+          reject(err)
+        } else {
+          reslove(data)
+        }
+      })
+      // 这里才是函数真正执行的地方执行newFn(a, cb)
+      fn.apply(null, args)
+    })
+  }
+}
+```
+
+我的前端仓库: [web-library](https://github.com/ht1131589588/web-library)

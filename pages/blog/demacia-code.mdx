@@ -1,0 +1,346 @@
+# 打造一个 redux 数据流方案 --- 名为 demacia
+
+![亚瑟](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/1/20/16fc20d5a63655b8~tplv-t2oaga2asx-image.image)
+
+目的：打造一个简单的 `redux` 数据流方案，实现功能类似与 `dva`，但仅仅只是对 redux 进行封装，简化 redux 使用流程和难度。最终目的肯定是为了提升开发效率和加深自己对 redux 源码的理解能力和运用能力
+
+如果你对 redux 理解还不够深入，想要完全理解它，可以看一下这篇文章：[完全理解 redux（从零实现一个 redux）](https://mp.weixin.qq.com/s/idWmfUbPVVqK7Yi0_9NC4A)
+
+## 名称介绍
+
+仓库名称叫 `demacia`，有没有熟悉的既视感，对，就是德玛西亚，命名缘由：没啥缘由，英雄联盟只玩过德玛西亚，玩过几次，王者荣耀常玩英雄-亚瑟（2016 年刚毕业连续玩了两百把 😂）。
+
+## 先讲使用
+
+编写 redux 部分的方式和 dva 类似，主要是引入方式和使用方式有所区别
+
+### 快速上手
+
+进入自己的 react 项目，通过 npm 安装 demacia
+
+```bash
+npm install demacia -S
+```
+
+### 项目中使用
+
+#### 1. 创建 store
+
+在 src 下创建一个 store 文件用于创建仓库
+
+```js
+// src/store/index.js
+import { demacia } from 'demacia'
+// 这里引入了一个名为global的model
+import global from './global'
+
+// 需要初始化创建的model
+const initialModels = {
+  global
+}
+
+// 设置state初始值，用于全局初始化数据，比如当需要持久化存储时，会很方便
+const initialState = {
+  global: {
+    counter: 2
+  }
+}
+
+// 调用demacia并传入初始参数，返回了redux的store
+const store = demacia({
+  initialModels,
+  initialState,
+  middlewares: [], // 加入中间件
+  effectsExtraArgument: {} // 额外参数
+})
+
+export default store
+```
+
+上面的代码中，我们引入了 `demacia` 函数，并调用它，然后返回了 `store`，这个 `store` 就是调用 `redux` 的 `createStore` 函数生成的，我们在调用 `demacia` 函数时传入了一个对象作为参数，并包含了两个初始化属性，`initialModels` 用于注入 `model` 数据，`initialState` 用于设置 `redux` 初始 `state`。
+
+模块 global.js 代码如下
+
+```js
+// src/store/模块global.js
+export default {
+  namespace: 'global',
+  state: {
+    counter: 0
+  },
+  reducers: {
+    increment(state, { payload }) {
+      return {
+        ...state,
+        counter: state.counter + 1
+      }
+    },
+    decrement(state, { payload }) {
+      return {
+        ...state,
+        counter: state.counter - 1
+      }
+    }
+  },
+  effects: {
+    async add({ dispatch }, { payload }) {
+      const res = await new Promise(resolve => {
+        setTimeout(() => {
+          resolve({ code: 1, success: true })
+        }, 1000)
+      })
+      dispatch({
+        type: 'increment',
+        payload: res
+      })
+    }
+  }
+}
+```
+
+#### 2. 页面引入
+
+使用`react-redux`把 store 加入项目，这里跟 redux 一样
+
+```js
+// src/App.js
+import React from 'react'
+import { Provider } from 'react-redux'
+import { HashRouter } from 'react-router-dom'
+import store from './store'
+import routes from './routes'
+
+function App() {
+  return (
+    <Provider store={store}>
+      <HashRouter>{routes}</HashRouter>
+    </Provider>
+  )
+}
+```
+
+页面中使用`react-redux`的`connect`方法获取 state
+
+```jsx
+// src/pages/home/index.js
+import React from 'react'
+import { Button } from 'antd'
+import { connect } from 'react-redux'
+
+const HomePage = props => {
+  return (
+    <div>
+      <div>globalCounter: {props.global.counter}</div>
+      <Button
+        onClick={() => {
+          props.dispatch({ type: 'global/increment' })
+        }}
+      >
+        同步increment
+      </Button>
+      <Button
+        onClick={() => {
+          props.dispatch({ type: 'global/add' })
+        }}
+      >
+        异步increment
+      </Button>
+    </div>
+  )
+}
+
+export default connect(state => state)(HomePage)
+```
+
+触发同步或者异步操作，都通过`dispatch`来分发对应模块对应的`action`或`effects action`
+
+上面使用的都是全局的 state，如果某个页面或者某个组件想有直接的状态呢，或者说是动态的向 store 添加 state 和 reducer，这时候可以引入 `model` 来进行处理。
+
+下面建一个页面 Todos，实现一个 `todo list`
+
+编写输入 Todos 的 model：
+
+```js
+// src/pages/todos/model.js
+import { model } from 'demacia'
+export default model({
+  namespace: 'Todos',
+  // 相当于react-redux中的connect的第一个参数，会传入state，返回的对象会返回给组件的props
+  selectors: function (state) {
+    return {
+      todos: state.Todos.todos,
+      loading: state.Todos.loading,
+      total: state.Todos.todos.reduce((acc, item) => acc + (item.count || 0), 0)
+    }
+  },
+  state: {
+    todos: [{ name: '菠萝', id: 0, count: 2 }]
+  },
+  reducers: {
+    putTodos(state, { payload }) {
+      return {
+        ...state,
+        todos: [...state.todos, ...payload]
+      }
+    },
+    putAdd(state, { payload }) {
+      return {
+        ...state,
+        todos: [...state.todos, payload]
+      }
+    }
+  },
+  effects: {
+    async getTodos({ dispatch }) {
+      const { datas } = await new Promise(resolve => {
+        setTimeout(() => {
+          resolve({
+            code: 0,
+            datas: [
+              { name: '🍎', id: 1, count: 11 },
+              { name: '🍆', id: 2, count: 22 }
+            ]
+          })
+        }, 1000)
+      })
+      dispatch({ type: 'putTodos', payload: datas })
+    },
+    async add({ dispatch }, { payload }) {
+      const { code } = await new Promise(resolve => {
+        setTimeout(() => {
+          resolve({
+            code: 0
+          })
+        }, 200)
+      })
+      if (code === 0) {
+        dispatch({ type: 'putAdd', payload: payload })
+      }
+    }
+  }
+})
+```
+
+上面需要注意的几点：
+
+一，model 函数接收了以下参数：
+
+- `namespace` reducer 的名称，给 `combineReducers` 合并 reducers 用的
+- `selectors` 相当于 react-redux 中的 connect 的第一个参数（mapStateToProps），会传入 state，需要返回一个对象，并合并到组件的 props
+- `state` 存储的数据，从上方代码`selectors`上可以看出多 state 中出现了`loading`,`loading`是内置的，它是一个数组，存储正在执行中的`effects`键
+- `reducers` 存储的是一个对象，对象的键是 action 的 type，值是一个函数，接收两个参数：state 和 action 对象，执行 reducer 过程中需要执行的部分，函数的返回值是新的 `state`
+- `effects` 处理副作用的地方，每一个属性都必须函数，类似前面的`reducers`，接收两个参数：
+  - 第一参数是一个对象，包含了强化后的`dispatch`和 state，以及一些扩展（初始化的时候传入的`effectsExtraArgument`对象就会合并到这个参数里面）
+  - 第二个参数是也是一个对象，仅包含一个`payload`属性
+
+二，model 函数执行后返回了一个高阶函数
+
+组件引入 model，用 model 函数执行后返回的高阶函数包裹组件，这里会做三件事：
+
+1. 把`selectors`执行的结果返回的对象加入到组件的 props
+2. 把`effects`对象结构注入到组件的 props
+3. 把内置的 `resetStore` 和 `setStore` 方法注入到组件的 props，执行是分别会触发两个 action，`resetStore`的 action 会把数据重置为最初的数据，`setStore`需要开发者在对应的`reducers`里自定义一个`setStore`函数
+
+下面是编写页面，引入 model 后可以获取数据并实现一些功能：
+
+```js
+// src/pages/todos/index.js
+import React, { useEffect, useState } from 'react'
+import model from './model'
+
+const Todos = props => {
+  const { todos = [], total, getTodos, loading } = props
+  const [input, setInput] = useState('')
+  useEffect(() => {
+    getTodos()
+  }, [getTodos])
+
+  return (
+    <div>
+      <h2>水果蔬菜(total: {total})</h2>
+      <div>
+        <input value={input} onChange={e => setInput(e.target.value)} />
+        <button
+          onClick={async () => {
+            await props.add({
+              name: input,
+              id: Math.random().toString(16).slice(2),
+              count: parseInt(Math.random() * 10)
+            })
+            setInput('')
+          }}
+        >
+          添加
+        </button>
+      </div>
+      {loading.includes('getTodos') ? (
+        'loading...'
+      ) : (
+        <ul>
+          {todos.map(fruit => (
+            <li key={fruit.id}>{fruit.name}</li>
+          ))}
+        </ul>
+      )}
+      <div>
+        <button
+          onClick={() => {
+            props.resetStore()
+          }}
+        >
+          resetStore
+        </button>
+        <button
+          onClick={() => {
+            props.setStore('haha')
+          }}
+        >
+          setStore
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export default model(Todos)
+```
+
+## 实现介绍
+
+从上面可以看出，`demacia`只有两个 api：
+
+- `demacia` 用于初始化 store 用的，可以接收四个参数
+  - initialState 初始化数据参数，写法是:`{ [model对应的namespace]: model对应的state初始值 }`
+  - initialModels 初始化 model，参考上面的`创建 store`部分
+  - middlewares 中间件 这里你可以加入其他的中间件进行扩展
+  - effectsExtraArgument 额外参数，这里的参数会在 effects 的属性方法的第一个参数对象中出现
+- `model` 用于生成 reducer，并把新的 reducer 合并到项目的 reducers 中，使用方法上面有讲到，参考上面的应该就可以了
+
+扩展：
+
+- selectors 可以结合 reselect 来优化性能
+
+功能主要是有
+
+- 把 redux 繁琐的使用过程给封装起来
+- 动态注入 reducer
+- 每个 model 内置了 loading 数组，loading 会收集正在执行过程中的 effects，让在项目可以获取 effects 的执行 状态
+- 添加了一些内置的 action 可以让实际开发中更简单，比如`resetStore`重置 state
+
+源码地址: [https://github.com/ht1131589588/demacia.git](https://github.com/ht1131589588/demacia.git)
+
+Demo 地址: [https://github.com/ht1131589588/demacia/tree/master/examples/simple-use](https://github.com/ht1131589588/demacia/tree/master/examples/simple-use)
+
+## 最后
+
+附上一些之前写过的相关文章地址：
+
+[React 系列之 Redux 源码探索](https://juejin.im/post/6844903905973764110)
+
+[Mobx 使用总结](http://docs.htonlinezone.cn/front/React/Mobx%E4%BD%BF%E7%94%A8%E6%80%BB%E7%BB%93.html)
+
+实现过程参考的资料：
+
+[redux 中文文档](http://cn.redux.js.org/)
+
+[relaxjs](https://github.com/divcss3/relaxjs)

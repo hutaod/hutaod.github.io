@@ -1,0 +1,133 @@
+# 图片预加载
+
+## 背景
+
+大家有没有遇到这样的场景，有一个页面全部都是有图片组成，但有部分图片很关键，如果没有下载完成或者下载失败，这时候不应该显示页面内容，继续显示加载组件（比如蚂蚁庄园，就会有一个加载中的覆盖层），否则会带给用户不好的体验。这时候就需要对关键图片进行预加载，等图片下载完成后，再关闭加载组件，再对图片进行渲染。
+
+## 实现
+
+针对图片预加载这个需求，可以封装一个图片预加载方法：
+
+```javascript
+/**
+ * 图片预加载，加载成功返回图片链接，失败返回 undefined
+ * @param url 图片链接
+ */
+export function prefetch(url: string): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    // 加载图片
+    const virtualImage = new Image();
+    virtualImage.src = url;
+    // 图片被加载完成过，这时候complete会为true
+    if (virtualImage.complete) {
+      return resolve(url);
+    }
+    // 加载完成
+    virtualImage.onload = (): void => {
+      resolve(url);
+    };
+    // 加载失败
+    virtualImage.onerror = (): void => {
+      resolve();
+    };
+  });
+}
+```
+
+如果想同时预加载多个图片，且成功返回 `true` ，失败返回 `false` ：
+
+```javascript
+/**
+ * 成功，返回true，失败返回 false
+ * @param urls 图片链接数组
+ */
+export async function prefetchAll(urls: string[]): Promise<boolean> {
+  for (let index = 0; index < urls.length; index++) {
+    // 有一个失败，则返回false
+    if (!(await prefetch(urls[index]))) {
+      return false;
+    }
+  }
+  // 全部成功，返回true
+  return true;
+}
+```
+
+上面这种实现方式会串行去请求图片资源，如果图片都能请求成功，效率低一些，不能充分利用网络，不过如果不是最后一张图片请求失败，可以节约流量🤦‍♂️。
+
+下面用类似 `promise all` 的方式，先批量发请求，有一个失败则直接 `resolve(false)`
+```javascript
+/**
+ * 成功，返回true，失败返回 false
+ * @param urls 图片链接数组
+ */
+export function prefetchAll2(urls: string[]): Promise<boolean> {
+  return new Promise((resolve) => {
+    const length = urls.length;
+    const results = [];
+    const thenFn = (url?: string): void => {
+      // 有一个失败，则返回false
+      if (!url) {
+        resolve(false);
+      }
+      // 成功则加入results
+      results.push(url);
+
+      // 全部加载成功
+      if (results.length === length) {
+        resolve(true);
+      }
+    };
+    // 先触发请求
+    for (let index = 0; index < length; index++) {
+      prefetch(urls[index]).then(thenFn);
+    }
+  });
+}
+```
+
+上面使用Promise 的 then来触发回调，可以在一个失败的时候，不用等待其他图片加载结束
+
+
+如果想同时预加载多个图片，不管成功还是失败，返回图片链接数组（加载成功的返回链接，失败的返回undefined，以便于区分哪一张失败或者过滤掉失败的图片）：
+
+```javascript
+/**
+ * 全部加载完，不管成功或者失败，返回图片链接数组（加载成功的返回链接，失败的返回undefined）
+ * @param urls 图片链接数组
+ */
+export async function prefetchAllSettled(urls: string[]): Promise<(undefined | string)[]> {
+  const result: (undefined | string)[] = [];
+  for (let index = 0; index < urls.length; index++) {
+    result.push(await prefetch(urls[index]));
+  }
+  return result;
+}
+```
+
+上面这种实现方式也会串行去请求图片资源，不能充分利用网络。
+
+下面用类似 `promise allSettled` 的方式，先批量发请求，再等待所有请求结果
+
+```javascript
+/**
+ * 全部加载完，不管成功或者失败，返回图片链接数组（加载成功的返回链接，失败的返回undefined）
+ * @param urls 图片链接数组
+ */
+export async function prefetchAllSettled2(urls: string[]): Promise<(undefined | string)[]> {
+  const length = urls.length;
+  const result: (undefined | string)[] = [];
+  const promises = [];
+  // 先触发请求
+  for (let index = 0; index < length; index++) {
+    promises.push(prefetch(urls[index]));
+  }
+  // 等待所有结果
+  for (let index = 0; index < length; index++) {
+    result.push(await promises[index]);
+  }
+  return result;
+}
+```
+
+`prefetchAll2` 和 `prefetchAllSettled2` 两个方法模拟了 `promise` 的 `all` 和 `allSettled` 的简单实现

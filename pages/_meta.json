@@ -1,7 +1,7 @@
 {
   "index": {
     "type": "page",
-    "title": "Nextra",
+    "title": "HUTAO",
     "display": "hidden"
   },
   "blog": {
@@ -11,5 +11,10 @@
   "notes": {
     "title": "笔记",
     "type": "page"
+  },
+  "github_link": {
+    "title": "前端技术博客和笔记",
+    "href": "https://github.com/hutaod",
+    "newWindow": true
   }
 }

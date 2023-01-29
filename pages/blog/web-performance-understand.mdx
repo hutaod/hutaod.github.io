@@ -1,0 +1,209 @@
+# web前端性能之了解篇
+
+## 前言
+
+从去年年底到最近，针对公司的 c 端 h5 页面进行了一些性能优化，也在团队内对性能优化实践做了一些总结和分享，于是准备把 Web 前端性能优化实践整理成一个专栏，很多内容可能都是摘抄的别人文章里面的，或者一些官方文档。中间都会标明来源，如果有未标明的，希望大家指出。
+
+优化性能的前提：我们首先需要了解我们网站的性能，然后再开始性能优化：
+
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ff6a6e7ca15d4627849dcdcb85b23a47~tplv-k3u1fbpfcp-watermark.image?)
+
+在分析性能之前，还需要处理好一些前置问题，比如定义好需要关注的性能指标、设计性能监控方案。
+
+因此，设计一个完整的性能优化流程，需要做到几点：
+
+- 定义需要关注的性能指标
+- 性能监控方案设计
+- 调研性能优化方案，并进行优化
+- 性能优化验证
+- 总结性能优化结果，完善性能优化方案
+
+本篇文章为了解篇，主要介绍性能的重要性、前端页面的加载过程和了解性能指标。
+
+## 性能的重要性
+
+首先先问一个问题：**为什么需要性能优化呢？**
+
+- 访问页面的速度太慢，很长时间才有响应，用户等了几秒发现还没有内容，就会直接退出页面
+- 用户进入页面后，操作卡断，用户会觉得网站相应慢或者没有响应，会影响用户继续使用下去的欲望
+- 页面播放的动画效果卡顿，会影响用户的感官，用户会觉得页面不流畅，仍然会影响用户继续使用下去的欲望
+
+从上面几个答案中，我们知道性能的好坏会影响用户是否继续使用我们的页面，也可以分析出影响性能的主要两个地方：
+
+- 加载时性能：页面首屏内容显示耗时会影响用户是否会中途退出的重要因素
+- 运行时性能：内容加载完成后，操作卡顿或者动画不流畅，是影响用户是否愿意继续使用该页面的重要因素
+
+下面我们从转化率和跳出率来看一些网站的真实数据统计，可以很直观的理解性能对于一个网站的影响（此部分摘自原文[为什么网站速度很重要？](https://www.cloudflare.com/zh-cn/learning/performance/why-site-speed-matters)）：
+
+**转化率**：多项研究表明，网站速度会影响转化率（即用户完成目标操作的比率）。与速度较慢的网站相比，不仅更多用户停留在快速加载的网站上，而且他们的转化率也更高。许多公司发现页面加载时间减少几毫秒都会增加转化率：
+
+- Mobify 发现将其首页的加载时间减少 100 毫秒会导致基于会话的转换次数增加 1.11％
+- 将页面加载时间缩短一半后，零售商 AutoAnything 的销售额增长了 12-13％
+- 沃尔玛发现，将页面加载时间缩短一秒，可以将转换率提高 2％
+
+**跳出率**：跳出率是用户在只浏览一个页面后就离开网站的百分比。如果页面在几秒钟内未加载，用户就可能关闭窗口或单击离开网站。英国广播公司（BBC）发现，网页加载每增加一秒钟，他们就会失去总用户的 10％。
+
+从上面的数据我们可以看出页面性能的重要性。
+
+## 页面加载的过程
+
+为了更好的理解影响性能的因素，我们需要了解页面的加载过程，这个过程也是`在浏览器里，从输入url到页面加载完成`的这个过程，下面我们来看看这个过程中间发生了什么？
+
+![url_to_rendered.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/91adb61bd3b748f897c368c012b99e39~tplv-k3u1fbpfcp-zoom-1.image)
+
+上面这张图展示了处理 url 到页面加载完成的整个过程，图片来源于极客时间 [浏览器工作原理与实践](https://time.geekbang.org/column/article/117637)
+
+从上图我们再来梳理具体的过程：
+
+1. 用户输入 `url`
+2. 浏览器进程将该 `url` 转发给 网络进程
+3. 网络进程接收到请求后，先检查本地缓存是否可用，缓存可用则直接读取缓存并返回给浏览器进程；缓存不可用再发起真正的 `url` 请求。 `url` 请求过程如下：
+   1. `DNS` 解析，获取服务器 `ip地址和端口`
+   2. 与服务端建立 `http` 连接
+   3. 构建和发送请求头信息
+   4. 服务端处理请求后响应请求
+   5. 浏览器网络进程接收并解析响应内容
+4. 浏览器进行分配渲染进程，开始渲染流程。
+5. 渲染进程解析 `html`：解析过程中如果 `header` 中使用非异步方式引入 `css` 或者 `js` 资源，就会先加载资源，再进行 `DOM` 的解析
+6. 执行渲染流水线：此时关键资源已经加载完毕，进行浏览器的渲染流水线：
+   1. 构建 `DOM` 树
+   2. 样式计算（Recalculate Style）：把 `CSS文本` 转换为浏览器可以识别的结构--styleSheets => 属性标准化 => 计算出 `DOM` 树中每个节点的具体样式
+   3. 布局（Layout）：创建 `布局树` ，并计算元素布局信息
+   4. 分层（Layers）：对布局树进行分层，生成分层树。（在更多工具里面可以打开 Layers 面板）
+   5. 生成图层绘制列表，提交到合成线程。
+   6. 合成线程将图层分成图块，并在光栅化线程池中将图块转换成位图。
+   7. 合成线程发送绘制图块命令 `DrawQuad` 给浏览器进程。
+   8. 浏览器进程根据 `DrawQuad` 消息生成页面，并显示到显示器上。
+7. 首屏渲染结束
+   1. 如果是 `ssr`， 白屏结束，显示页面首屏内容。
+   2. 如果是 `csr`，则等待 body 底部所有 js 加载完毕后，js 执行生成页面。
+8. 所有资源下载完毕
+
+了解页面显示的整个过程后，我们就可以更好的分析影响页面性能的因素。
+
+## 常见的性能指标
+
+性能指标可以分为三大类：`文档加载`、`内容呈现`、`交互响应`。
+
+主要会介绍指标的定义以及测量方法。其中文档加载类指标主要是用于辅助观察内容呈现过程。
+
+### 文档加载相关指标
+
+![timestamp-diagram.svg](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ce89bcbe59c343b9bfd8956ae8701883~tplv-k3u1fbpfcp-zoom-1.image)<br />
+
+#### Time to First Byte（TTFB）
+
+浏览器从请求页面开始到接收第一字节的时间，这个时间段内包括 `DNS` 查找、 `TCP` 连接和 `SSL` 连接。 `TTFB` 不仅是页面的加载，每个接口或者其他资源请求都有自己的 `TTFB` 时间。
+测量方法：
+
+```javascript
+new PerformanceObserver(entryList => {
+  const [pageNav] = entryList.getEntriesByType('navigation')
+  console.log(`TTFB: ${pageNav.responseStart}`)
+}).observe({
+  type: 'navigation',
+  buffered: true
+})
+```
+
+指标具体描述可以参考：[https://web.dev/ttfb/](https://web.dev/ttfb/)
+
+#### DomContentLoaded（DCL）
+
+当 `HTML` 文档被完全加载和解析完成之后,`DOMContentLoaded` 事件就会被触发，不会等待样式表、图像和子框架加载完成。为了让 `HTML` 按正常样式显示完整，一般会把样式表放在头部进行加载，阻塞 `HTML` 文档的解析。
+
+#### Load
+
+window.onLoad 事件触发的时间。页面所有资源都加载完毕后（比如图片，CSS），onLoad 事件才被触发。
+
+### 内容呈现相关指标
+
+像 `Load` 或 `DOMContentLoaded` 这样的度量并不能反映用户的视觉体验，因为它们的时间点不一定与用户在屏幕上看到内容的时间点对应。
+
+我们需要一些可以能够体现页面内容呈现速度的指标。
+
+#### `First Paint`(FP):
+
+`FP` 定义是渲染树首次转变为屏幕像素的过程，我们用 FP time 来表达首次渲染时间。在 FP 之前我们看见的屏幕是空白的，那么 FP time 也可理解为白屏时间。计算方法：
+
+```javascript
+if (window.performance) {
+  let pf = window.performance
+  let pfEntries = pf.getEntriesByType('paint')
+  let fp = pfEntries.find(each => each.name === 'first-paint')
+  console.log('first paint time: ', fp && fp.startTime)
+}
+```
+
+#### `First Contentful Paint`(FCP): 首次内容绘制
+
+`FCP` 从页面加载到屏幕上首次有渲染内容的过程，这里的内容可以是文本、图像、svg 元素和非白色 canvas 元素。计算方法：
+
+```javascript
+if (window.performance) {
+  let pf = window.performance
+  let pfEntries = pf.getEntriesByType('paint')
+  let fp = pfEntries.find(each => each.name === 'first-contentful-paint')
+  console.log('first contentful paint time: ', fp && fp.startTime)
+}
+```
+
+`FCP` 是测量感知加载速度的一个以用户为中心的重要指标，因为该项指标会在用户首次在屏幕上看到任何内容时，在页面加载时间轴中标记出相应的点，迅捷的 FCP 有助于让用户确信某些事情正在进行。
+
+指标具体描述可以参考：[https://web.dev/fcp/](https://web.dev/fcp/)
+
+#### `Largest Contentful Paint`(LCP) 最大内容绘制
+
+`LCP`从页面加载到屏幕上首次有渲染内容的过程，这里的内容可以是文本、图像、svg 元素和非白色 canvas 元素。计算方法：
+
+```javascript
+new PerformanceObserver(entryList => {
+  for (const entry of entryList.getEntries()) {
+    console.log('LCP candidate:', entry.startTime, entry)
+  }
+}).observe({ type: 'largest-contentful-paint', buffered: true })
+```
+
+`LCP` 是测量感知加载速度的一个以用户为中心的重要指标，因为该项指标会在页面的主要内容基本加载完成时，在页面加载时间轴中标记出相应的点，迅捷的 LCP 有助于让用户确信页面是有效的。
+
+指标具体描述可以参考：[https://web.dev/lcp/](https://web.dev/lcp/)
+
+#### `Speed Index`(SI) 速度指数
+
+`Speed Index` 衡量页面加载期间内容的视觉显示速度。Lighthouse 首先捕获浏览器中页面加载的视频，并计算帧之间的视觉进展。
+
+指标具体描述可以参考：[https://web.dev/speed-index/](https://web.dev/speed-index/)
+
+### 交互响应相关指标
+
+#### `Time to Interactive`(TTI) 可交互时间
+
+`TTI` 指标测量页面从开始加载到主要子资源完成渲染，并能够快速、可靠地响应用户输入所需的时间。
+
+`TTI` 是测量加载响应度的重要实验室指标。该指标有助于识别看起来具备交互性但实际上并非如此的页面情况。迅捷的 `TTI` 有助于确保页面的有效性。
+
+但 `TTI` 是一种非标准化的 Web 性能“进度”指标，定义为最后一个长任务完成且之后网络和主线程处于非活动状态 5 秒的时间点。因此使用工具测量出来的时间和实际上可交互时间并不一致。
+
+指标具体描述可以参考：[https://web.dev/tti/](https://web.dev/tti/)<br />
+
+#### `First Input Delay`(FID) 首次输入延迟
+
+`FID` 是测量加载响应度的一个以用户为中心的重要指标，因为该项指标将用户尝试与无响应页面进行交互时的体验进行了量化，低 FID 有助于让用户确信页面是有效的。
+
+指标具体描述可以参考：[https://web.dev/fid/](https://web.dev/fid/)
+
+#### `Frames Per Second`(FPS) 帧率
+
+`FPS` 是设备产生图像（或帧）的速率，用每秒可以重新绘制的帧数（Frames Per Second，FPS）表示。
+
+重新绘制可能需要重新计算样式、布局和绘制，如果每帧绘制到屏幕的时间在 16.7 ms 以上，每秒绘制的帧数就会小于 60 帧，人眼就能感受到页面出现卡顿，所以  FPS 是衡量应用流畅度的一个非常重要的指标，60fps 是页面流畅的目标，可以为每次绘制提供 16.7ms 的时间预算。
+
+## 最后
+
+如果文章中有问题，欢迎大家指出，谢谢 🙏
+
+参考资源：
+
+- [浏览器工作原理与实践](https://time.geekbang.org/column/intro/100033601?tab=catalog)
+- [web.dev](https://web.dev/)
+- [前端性能优化指南[7]--Web 性能指标](https://juejin.cn/post/6844904153869713416)

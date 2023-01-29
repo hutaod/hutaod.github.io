@@ -5,7 +5,6 @@ const withNextra = require('nextra')({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // outDir: "docs",
   images: {
     unoptimized: true
   }
