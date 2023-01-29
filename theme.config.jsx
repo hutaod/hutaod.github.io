@@ -1,5 +1,5 @@
 export default {
-  logo: <span>拾光者的空间</span>,
+  logo: <span>HUTAO</span>,
   project: {
     link: 'https://github.com/hutaod/hutaod.github.io',
   },

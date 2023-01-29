@@ -1,14 +1,15 @@
 {
   "index": {
-    "title": "首页",
-    "type": "page"
+    "type": "page",
+    "title": "Nextra",
+    "display": "hidden"
   },
   "blog": {
     "title": "博客",
     "type": "page"
   },
-  "docs": {
-    "title": "合集",
+  "notes": {
+    "title": "笔记",
     "type": "page"
   }
 }
