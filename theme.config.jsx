@@ -1,12 +1,11 @@
 export default {
   logo: <span>HUTAO</span>,
   project: {
-    link: 'https://github.com/hutaod/hutaod.github.io',
+    link: 'https://github.com/hutaod',
   },
   useNextSeoProps() {
     return {
-      titleTemplate: '%s – HUTAO'
+      titleTemplate: '%s – 前端博客和笔记'
     }
   }
-  // ...
 }
