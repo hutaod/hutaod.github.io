@@ -2,11 +2,10 @@ import type { DocsThemeConfig} from 'nextra-theme-docs';
 import { useConfig } from 'nextra-theme-docs'
 import { useRouter } from 'next/router'
 import Image from 'next/image'
-import faviconPng from "./public/favicon.png";
 
 const logo = (
   <span>
-    <Image style={{ display: "inline-block", marginRight: 4, borderRadius: 24 }} src={faviconPng} width={24} height={24} alt="" />
+    <Image style={{ display: "inline-block", marginRight: 4, borderRadius: 24 }} src="/favicon.png" width={24} height={24} alt="" />
     hutao
     <style jsx>{`
       span {
@@ -65,18 +64,6 @@ const config: DocsThemeConfig = {
         />
         <meta name="apple-mobile-web-app-title" content="HUTAO" />
         <link rel="icon" href="/favicon.png" type="image/png" />
-        <link
-          rel="icon"
-          href="/favicon-dark.svg"
-          type="image/svg+xml"
-          media="(prefers-color-scheme: dark)"
-        />
-        <link
-          rel="icon"
-          href="/favicon-dark.png"
-          type="image/png"
-          media="(prefers-color-scheme: dark)"
-        />
       </>
     )
   },
