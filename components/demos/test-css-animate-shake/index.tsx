@@ -7,7 +7,7 @@ function TestAnimatiom() {
 
     return (
         <Shadow mode="open">
-            <link rel="stylesheet" href="/demos/test-animation.css" />
+            <link rel="stylesheet" href="/shadow-styles/test-animation.css" />
             <div>
                 <button onClick={() => setVisible(true)}>
                 显示有兼容性问题的弹窗（比较难重现问题）
