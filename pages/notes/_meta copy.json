@@ -1,0 +1,14 @@
+{
+  "README": {
+    "display": "hidden"
+  },
+  "JavaScript": "JavaScript",
+  "TypeScript": "TypeScript",
+  "React": "React",
+  "NodeJS": "NodeJS",
+  "Webpack": "Webpack",
+  "CSS": "CSS",
+  "WebAPIS": "HTML",
+  "DevOps": "DevOps",
+  "Other": "Other"
+}

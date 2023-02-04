@@ -1,4 +1,9 @@
 {
+  "README": {
+    "display": "hidden"
+  },
+  "next-redux-and-wrapper": "Next.js中Redux使用方案和wrapper概念",
+  "ios-webview-animation-shake": "ios webview内h5动画抖动问题处理",
   "h5-use-in-app": "h5在App内的运用场景",
   "next-render-mode": "Next.js之前端渲染模式",
   "image-preload": "图片预加载",

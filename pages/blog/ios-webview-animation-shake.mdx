@@ -1,0 +1,152 @@
+# ios webview内h5动画抖动问题处理
+
+今天在工作中遇到了这样一个问题：一个页面中通过点击按钮弹出一个popup弹窗，它有一个简单的从页面底部弹出的动画，在安卓app内正常工作，但是在ios手机webview中时，发现动画会抖动一下！
+
+然后我观察了一分钟，也到 pc 端和手机浏览器中打开进行了测试，发现只有在 ios 的 `webview` 中才出现了抖动，且抖动的原因是popup弹窗显示时直接先显示了整个内容，再消失掉，再从底部缓慢弹出。效果如下：
+
+![ogm15-n8ofm.gif](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/01c8898a077d444e87279766314ebbd9~tplv-k3u1fbpfcp-watermark.image?)
+
+popup 弹窗css代码如下：
+
+```css
+/* 弹窗样式代码 */
+.popup {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #fff;
+    min-height: 150px;
+    border-radius: 16px 16px 0 0;
+    /* 动画显示代码 */
+    animation: slideUp 0.3s ease;
+}
+
+/* 动画代码 */
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+```
+
+popup 弹窗显示时就会直接触发动画，动画也没有设置延迟，所以按正常逻辑来说，`slideUp` 的 `transform: translateY(100%);` 这段代码在 @keyframes 的 `from` 中，应该也会生效。而在我测试的大部分浏览器上也确实是这样。
+
+但有部分机型的 css 生效顺序好像不是这样的，就导致了部分浏览器会直接显示完整的弹窗，也就是 `slideUp` 的 `transform: translateY(100%);` 这段代码并不会先随着 `.popup` 的样式生效而立即生效。因此这里可以推断出问题的原因大概是部分浏览器解析正常样式和解析执行动画样式并不是同时进行的。
+
+因此，我们可以对代码进行调整，使 popup 显示时，默认隐藏，再通过执行动画去显示弹窗，也就是把代码明显的分成两个步骤来进行，这样也可以使逻辑更清晰，避免出现此类问题。
+
+调整后的代码如下：
+
+```css
+// 弹窗样式代码
+.popup {
+    /* ...省略其他代码 */
+    /* 直接先把 popup 位置往下移 */
+    transform: translateY(100%);
+    /* 动画显示部分代码，forwards 使动画执行后保持最后位置 */
+    animation: slideUp 0.3s ease forwards;
+    /* 延迟动画 0.01s 后再执行 */
+    animation-delay: 0.01s;
+}
+```
+
+代码改成这样后就弹窗出现时就不会出现抖动的问题了。[点击可以查看 demo](https://6j9y3.csb.app/)，demo 实现代码：
+
+react代码：
+```jsx
+import React, { useState } from "react";
+import cls from "classnames";
+import "./test-animation.css";
+
+function TestAnimatiom(props) {
+    const [visivleType, setVisible] = useState(false);
+
+    return (
+        <div>
+            <button onClick={() => setVisible(true)}>
+            显示有兼容性问题的弹窗（比较难重现问题）
+            </button>
+            <button onClick={() => setVisible(1)}>设置延迟，重现弹窗抖动问题</button>
+            <button onClick={() => setVisible(2)}>默认隐藏 popup，解决弹窗抖动问题</button>
+            {visivleType && (<div className="popup-wrapper">
+                <div
+                    className={cls(
+                        "popup",
+                        visivleType === 1 && "popup-delay",
+                        visivleType === 2 && "popup-postion-set"
+                    )}
+                >
+                    <h3>弹窗</h3>
+                    <button onClick={() => setVisible(false)}>关闭弹窗</button>
+                </div>
+            </div>)}
+        </div>
+    );
+}
+
+export default TestAnimatiom;
+```
+
+样式代码：
+```css
+.popup-wrapper {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  left: 0;
+  top: 0;
+  background-color: rgba(0, 0, 0, 0.65);
+}
+
+/* 弹窗样式代码 */
+.popup {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #fff;
+  min-height: 50%;
+  border-radius: 16px 16px 0 0;
+  padding: 20px;
+  /* 动画显示代码 */
+  animation: slideUp 0.3s ease;
+}
+
+/* 重现弹窗问题 */
+.popup-delay {
+  animation-delay: 0.1s;
+}
+
+/* 先隐藏 popup */
+.popup-postion-set {
+  transform: translateY(100%);
+  animation: slideUp 0.3s ease forwards;
+  animation-delay: 0.01s;
+}
+
+/* 动画代码 */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+```
+
+改动方式很简单，但是从排查问题到修改测试的过程却会耗费不少时间，把每个这样细节点记录下来，希望以后对自己和其他人都能有所帮助。
+
+本篇文章仅仅记录了一个浏览器兼容性的问题处理，但也其实涉及到了 css 的解析顺序，掘友们有 css 解析顺序的相关文章，也欢迎分享给我。
+
+测试demo：
+
+import TestAnimatiom from "../../components/demos/test-css-animate-shake";
+
+<div className="p-4 border border-gray-200 dark:border-gray-900 rounded mt-6">
+  <TestAnimatiom />
+</div>
