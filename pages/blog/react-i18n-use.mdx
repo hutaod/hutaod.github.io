@@ -1,0 +1,265 @@
+# React多语言接入方案
+
+## 多语言说明
+
+在项目中实现多语言功能，其实挺简单的，但是一般需要多语言功能的时候，常常涉及到整个前端工程，甚至公司所有的工程都需要支持多语言功能。
+
+而某一个功能随着需要的地方逐渐变多，往往就需要一种规范，来让多语言规范化，这也是 [i18n 国际化概念](https://baike.baidu.com/item/I18N/6771940) 出现的原因。甚至由此多出来了一个 [i18next](https://github.com/i18next) 组织。
+
+[i18next](https://github.com/i18next) 组织为前端的多语言方案提供了一个很受欢迎的库：[`i18next`](https://www.i18next.com) 
+
+[`i18next`](https://www.i18next.com) 内部实现了一整套规范，文档也非常完善，但如果要在 react 项目中更好的使用，还要做一些处理才行，于是出现了 [`react-i18next`](https://react.i18next.com) 。
+
+本篇文章的主要目的并不是介绍如何使用 `i18next` 和 `react-i18next` ，而是分享一些让开发者使用起来更方便的方法。
+
+## 正常接入使用
+
+安装：
+
+```bash
+pnpm add i18next react-i18next
+```
+
+初始化：
+
+```tsx
+// src/i18n/index.ts
+import i18next, { Resource, KeyPrefix, ResourceLanguage, Namespace } from "i18next";
+import { initReactI18next } from "react-i18next";
+
+// 创建 i18n 实例
+const i18nextInstance = i18next.createInstance();
+// 注入插件，initReactI18next 是一个 3rdParty 类型的插件，也就是把实例给第三方插件，让其完全可以获取 i18n 实例所有信息
+i18nextInstance.use(initReactI18next);
+
+// 所有翻译资源
+const resources = {
+    zh: {
+        translation: {
+            "test": "测试"
+        }
+    },
+    en: {
+        translation: {
+            "test": "test"
+        }
+    }
+}
+
+// i18n 实例初始化内容
+i18nextInstance.init(
+    {
+      lng: "en",
+      // 后备语言，如果用户语言的翻译不可用时使用此顺序
+      fallbackLng: ["zh", "en"],
+      // 如果需要调试可以打开
+      // debug: process.env.NODE_ENV === "development",
+      ns: ["translation"],
+      // 默认值就是 translation，可以进行设置
+      defaultNS: "translation",
+      resources: resources,
+    },
+    (err) => {
+      if (err) return console.log("something went wrong loading", err);
+    }
+  );
+```
+
+初始化完成后，就可以到组件中去正常使用翻译功能了，使用 [`withTranslation` 高阶函数](https://react.i18next.com/latest/withtranslation-hoc)和 [`useTranslation` hook](https://react.i18next.com/latest/usetranslation-hook) 都可以获取翻译的 `t` 方法和 i18n 实例，具体使用方法可点击去官网查看。
+
+## 扩展使用方案
+
+### withTranslation 扩展
+
+正常来说，开发者并不希望每次新增页面或者组件，需要新增翻译都去改动初始化的文件，更希望能够在当前组件在使用的时候自动去注入翻译。
+
+我们可以对 withTranslation 进行重写，其中 `ns` 代表 namespace。
+
+```
+// src/i18n/index.ts
+
+import i18next, { Resource, KeyPrefix, ResourceLanguage, Namespace } from "i18next";
+import {
+  initReactI18next,
+  WithTranslation,
+  withTranslation,
+} from "react-i18next";
+
+// 根据 namespace 缓存，避免
+const resourcesCache: Record<string, Resource> = {
+  translation: {},
+};
+
+// 翻译资源集合，有可能初始化的时候在其他组件加载之后注入
+const resources: Record<string, Resource> = {};
+
+/**
+ * 用于加载namespace资源
+ */
+export function addI18nResources(ns: string, resourcesObj: Resource) {
+  for (const key in resourcesObj) {
+    if (Object.prototype.hasOwnProperty.call(resourcesObj, key)) {
+      addNSResource(key, ns, resourcesObj[key]);
+    }
+  }
+}
+
+/**
+ * 添加资源
+ * @param lng 语言
+ * @param ns namespace
+ * @param resource 语言包
+ */
+const addNSResource = (lng: string, ns: string, resource: ResourceLanguage) => {
+  if (!resources[lng]) {
+    resources[lng] = {};
+  }
+  if (!resources[lng][ns]) {
+    resources[lng][ns] = {};
+  }
+  // 合并之前的数据
+  resources[lng][ns] = {
+    ...resources[lng][ns],
+    ...resource,
+  };
+  // 如果已经初始化，则直接添加
+  if (i18nextInstance.isInitialized) {
+    i18nextInstance.addResourceBundle(lng, ns, resources[lng][ns]);
+  }
+};
+
+// withTranslation 扩展方法
+export function withTranslationExtend<N extends string, TKPrefix extends KeyPrefix<N> = undefined>(
+    ns: N,
+    resourcesObj?: Record<string, Resource>,
+    options?: {
+        withRef?: boolean;
+        keyPrefix?: TKPrefix;
+    }
+) {
+    // 注入新的 namespace 翻译内容
+    if (resourcesObj) {
+        addI18nResources(ns, resourcesObj);
+    }
+    return withTranslation(ns, options);
+}
+```
+
+扩展完成后，withTranslationExtend 就可以动态加载翻译资源：
+
+```
+import { withTranslationExtend, WithTranslation } from "../i18n";
+
+type Props = WithTranslation;
+
+function I18nTest(props: Props) {
+  const t = props.t;
+  return (
+    <>
+      <div>
+        <h1>i18n 测试</h1>
+        <p>{t("你好")}</p>
+      </div>
+    </>
+  );
+}
+
+export default withTranslationExtend("test", {
+    en: {
+        "你好": "hi!"
+    },
+    zh: {
+        "你好": "你好!"
+    },
+})(I18nTest);
+```
+
+现在这样是不是方便了一些？特别是对按需加载的组件，可以让翻译资源也按需加载。
+
+### 改善 useTranslation 使用体验
+
+
+待完善，
+
+`withTranslationExtend` 给被包裹的组件传入的 `tFunction` 默认作用 `ns` 就是传入的 `ns`，但 `useTranslation` 并不是，还是需要传入需要使用的 `ns`，或者使用 `t` 函数的时候添加前缀，比如：
+
+```js
+const { t } = useTranslation("test");
+t("你好")
+// 或者
+const { t } = useTranslation();
+t("test:你好")
+```
+
+还有些其他方式，但是并不觉得好用，有时候在深层次的组件中，我只想使用当前代码所在上下文最近的上文 `ns` ，这样可以方便一个组件被不同的组件使用，上层的翻译内容是啥，就使用啥，因为可能不同场景翻译也可能不一样，但key可以保存一致。
+
+下面我们就来使用 `React.createContext` 来实现这个能力：
+
+```tsx
+const I18nCustomContext = React.createContext({ namespace: "translation" });
+
+/**
+ * 只用于加载资源时使用
+ */
+export function withTranslationExtend<N extends string, TKPrefix extends KeyPrefix<N> = undefined>(
+  ns: N,
+  resourcesObj?: Record<string, Resource>,
+  options?: {
+    withRef?: boolean;
+    keyPrefix?: TKPrefix;
+  }
+) {
+  if (ns && resourcesObj) {
+    addI18nResources(ns, resourcesObj);
+  }
+  const withFunc = withTranslation(ns, options);
+  return function wrap<
+    C extends React.ComponentType<React.ComponentProps<any>>,
+    Props extends React.ComponentProps<any>
+  >(Component: C) {
+    // 只是为了注入 I18nCustomContext
+    function WithCustomI18nContext(props: Props & WithTranslation, ref: React.ForwardedRef<unknown>) {
+      return (
+        <I18nCustomContext.Provider
+          value={useMemo(
+            () => ({
+              namespace: ns,
+            }),
+            []
+          )}
+        >
+          <Component {...(props as any)} ref={ref} />
+        </I18nCustomContext.Provider>
+      );
+    }
+    
+    // 定义 displayName，便于更好的定位错误
+    WithCustomI18nContext.displayName = `WithCustomI18nContext(${
+      Component.displayName || Component.name || "Component"
+    })`;
+ 
+    // 转移 Component 函数中的静态方法
+    hoistNonReactStatics(WithCustomI18nContext, Component);
+    // 处理 ref 问题
+    return withFunc(React.forwardRef(WithCustomI18nContext));
+  };
+}
+
+// useTranslation 扩展
+export function useTranslationExtend<N extends Namespace = "translation", TKPrefix extends KeyPrefix<N> = undefined>(
+  namespace?: N,
+  options?: UseTranslationOptions<TKPrefix>
+) {
+  const i18nCtx = React.useContext(I18nCustomContext);
+  // 未提供 namespace 时，使用最近的一个上下文中指定的 namespace
+  return useTranslation(namespace || i18nCtx.namespace, options);
+}
+```
+
+现在 使用 `useTranslationExtend` 替代 `useTranslation` 后，就可以读取最近上文的翻译，都没有则读取默认的namespace，使用方法跟 `useTranslation` 一致。
+
+## 结语
+
+总结一下，文本主要介绍了 React 工程常用的多语言方案，并扩展了 `withTranslationExtend` 和 `useTranslationExtend` 函数来增强开发体验。
+
+上面有部分 `ts类型` 可能并不完善，因为时间原因，也没有考虑 `Next.js` 等服务端渲染框架使用的情况，大家如果采用此方案的话，需要注意下一下。
