@@ -2,6 +2,10 @@
   "README": {
     "display": "hidden"
   },
+  "react-i18n-use": "React多语言接入方案",
+  "next-custom-server": "Next.js自定义Server的问题",
+  "next-custom-config": "Next.js 自定义配置扩展",
+  "create-github-page-blog": "搭建一个 github page 个人网站",
   "next-redux-and-wrapper": "Next.js中Redux使用方案和wrapper概念",
   "ios-webview-animation-shake": "ios webview内h5动画抖动问题处理",
   "h5-use-in-app": "h5在App内的运用场景",
