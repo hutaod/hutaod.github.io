@@ -2,6 +2,8 @@
   "README": {
     "display": "hidden"
   },
+  "nrw-code-analysis": "next-redux-wrapper 源码分析 ",
+  "next-i18n-use": "Next.js多语言接入方案",
   "react-i18n-use": "React多语言接入方案",
   "next-custom-server": "Next.js自定义Server的问题",
   "next-custom-config": "Next.js 自定义配置扩展",
