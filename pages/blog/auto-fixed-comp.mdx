@@ -1,0 +1,253 @@
+# React | 带你实现一个具备吸顶和吸底功能的组件
+
+> [本文也在掘金发布](https://juejin.cn/post/7201099253497708599)
+
+## 背景
+
+现在手机应用经常有这样一个场景：
+
+> 页面上有一个导航，导航位置在页面中间位置，当页面顶部滚动到导航位置时，导航自动吸顶，页面继续往下滚动时，它就一直在页面视窗顶部显示，当往上滚动时，经过最初位置时，导航自动复原，不再吸顶。
+
+效果就如京东超市首页的导航栏一样：
+
+<img src="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b3760286223143f1ac76ab4a556bf122~tplv-k3u1fbpfcp-watermark.image?" width="360" />
+
+下面我们就来具体实现这样一个 `React` 组件，实现后还会再扩展延伸一下 `吸底` 功能，因为 `吸底` 场景也不少。
+
+具体要求：
+
+1. 需要可以设置是 `吸顶` 还是 `吸底`。
+2. `吸顶` 可以设置距离视窗顶部的位置，`吸顶` 可以设置距离视窗底部的位置。
+3. 可以对正常组件都生效，不影响组件自身的样式。
+
+## 实现
+
+组件主要是为了 `吸顶` 或者 `吸底` 功能，那么就命名为 `AutoFixed` 。
+
+主要实现逻辑：需要判断自身在视窗内的位置与设置的 `吸顶` 或者 `吸底` 位置是否匹配，匹配上了则可以进行 `吸顶` 或者 `吸底`。
+
+获取自身位置一般可以用 `滚动的位置` 和 `自身距离页面顶部` 的位置来判断，但实现起来会麻烦一些，`IntersectionObserver`也很好用，而且性能会更好，因此这里将直接使用 `IntersectionObserver` 来处理。
+
+下面，我们先实现一个基于 `IntersectionObserver` 实现的判断位置的 `hook`。
+
+定义 props 类型：
+
+```ts
+import { RefObject } from "react";
+
+type Props = {
+  el: React.RefObject<Element>;
+  options?: IntersectionObserverInit;
+};
+```
+
+可接受参数：
+
+`el`: React 的 `ref` 实例，被判断判断位置的 DOM 元素。
+`options`: IntersectionObserver 构造函数的初始化参数。
+
+具体实现：
+
+```ts
+import React, { useEffect, useState } from "react";
+
+export function useIntersection(props: Props): boolean {
+  const { el, options } = props;
+  // 是否到了指定位置区域
+  const [intersection, setIntersection] = useState(true);
+
+  useEffect(() => {
+    if (!el.current) return;
+    // 初始化 IntersectionObserver 实例
+    const intersectionObserver = new IntersectionObserver(
+      function (entries) {
+        setIntersection(entries[0].intersectionRatio === 1);
+      },
+      { ...options, threshold: [1] }
+    );
+
+    // 开始监听
+    intersectionObserver.observe(el.current);
+
+    return (): void => {
+      // 销毁
+      intersectionObserver.disconnect();
+    };
+  }, [el.current]);
+
+  return intersection;
+}
+```
+
+现在实现了一个可以根据传入的参数来控制否到了指定位置区域的 hook ：`useIntersection`。
+
+`useIntersection` 只是对 `IntersectionObserver` 的简单封装，并没有复杂实现，具体作用就是用于判断某个元素是否进入了 `可视窗口`，想了解更多可以[点击去查看它的MDN文档](https://developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver)。
+
+下面再来实现我们要实现的具备吸顶和吸底功能的组件：`AutoFixed`。
+
+参数定义：
+
+```ts
+export type AutoFixedProps = React.ImgHTMLAttributes<HTMLDivElement> & {
+  /** 吸顶距离 */
+  top?: string;
+  /** 吸底距离 */
+  bottom?: string;
+  /** 是否一直吸顶或者吸底 */
+  alwaysFixed?: boolean;
+  zIndex?: number;
+  children: React.ReactNode;
+  /** 元素框高度 */
+  height: number | string;
+  /** 相对的目标元素，因为是用的 fixed 定位，记得做相应处理。 */
+  root?: Element | Document | null;
+  /** 固定的时候才有的className */
+  fixedClassName?: string;
+  /** 固定的时候才有的样式 */
+  fixedStyle?: React.CSSProperties;
+  /** fixed状态改变时调用 */
+  onFixedChange?: (isFixed: boolean) => void;
+};
+```
+
+可接受参数 基于 `React.HtmlHTMLAttributes<HTMLDivElement>` ，也就是继承了 `div` 的默认属性。
+
+其他自定义参数说明：
+
+- `top` 吸顶距离，`元素顶部`距离`视窗顶部`小于等于 `top` 时，进行吸顶。
+- `bottom` 吸底部距离，`元素底部`距离`视窗底部`大于等于 `bottom` 时，进行吸底。注意逻辑是和`吸顶`相反。
+- `alwaysFixed`，用于支持默认就要一直吸顶或者吸底的情况，需要配合 `top` 和 `bottom` 来使用。
+- `zIndex` 控制吸顶或者吸底时的样式层级。
+- `children` `children` 元素是正常的 React 组件即可。
+- `height` 被包裹元素的高度.也就是 `children` 元素 的高度。
+- `root`，相对视窗的目标元素，也就是可以控制在某个区域内进行吸顶和吸底，但因为这里是用的 `fixed` 定位，如果需要设置 `root` 时，需要改变成 `absolute` 定位。
+- `fixedClassName` 吸顶和吸底的时候需要动态添加的 `className`。
+- `fixedStyle` 吸顶和吸底的时候需要动态添加的 `样式`。
+- `onFixedChange` 吸顶和吸底的时候告诉外界。
+
+
+具体实现：
+```tsx
+import React, { useRef, useEffect } from "react";
+import { useIntersection } from "../../components/hooks/use-intersection";
+
+export const AutoFixed = (props: AutoFixedProps) => {
+  const {
+    alwaysFixed,
+    top,
+    bottom,
+    style,
+    height,
+    root,
+    zIndex = 100,
+    children,
+    className,
+    fixedClassName,
+    fixedStyle,
+    onFixedChange,
+    ...rest
+  } = props;
+  // `bottom` 值存在时，表面要悬浮底部
+  const isFiexdTop = !bottom;
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  // 设置监听参数控制：top 为吸顶距离，bottom 为吸底距离
+  const options = {
+    rootMargin: `-${top || "0px"} 0px -${bottom || "0px"} 0px`,
+    // 设置root
+    root,
+  } as IntersectionObserverInit;
+  // 是否悬浮
+  const intersection = useIntersection({ el: wrapperRef, options });
+  const shouldFixed = alwaysFixed ? true : !intersection;
+
+  useEffect(() => {
+    // 通知外部
+    onFixedChange?.(shouldFixed);
+  }, [shouldFixed, onFixedChange]);
+
+  return (
+    <div
+      style={{ ...style, height }}
+      {...rest}
+      className={`${className}${shouldFixed ? " fixedClassName" : ""}`}
+      ref={wrapperRef}
+    >
+      <div
+        style={{
+          height,
+          position: shouldFixed ? "fixed" : "initial",
+          top: isFiexdTop ? top || 0 : undefined,
+          bottom: isFiexdTop ? undefined : bottom || 0,
+          zIndex: zIndex,
+          ...(shouldFixed ? fixedStyle : {}),
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
+```
+
+实现逻辑：
+
+1. 使用了 `alwaysFixed` 判断是否一直悬浮。
+2. 默认悬浮顶部，`bottom` 值存在时，表明要悬浮底部。
+3. 给 `useIntersection` 传入监听位置控制参数。
+4. 根据 `useIntersection` 的结果来判断是否应该 `吸顶` 或 `吸底` 。
+5. 做了 `style` 样式和 `className` 传入处理的问题，以及 zIndex 层级问题。
+6. 吸顶时，不进行设置 `bottom`，吸底时，不进行设置 `bottom`。
+
+主要核心逻辑是第 `3` 点：
+
+```tsx
+const options = {
+    rootMargin: `-${top || "0px"} 0px -${bottom || "0px"} 0px`,
+};
+```
+
+`rootMargin` 中：`-${top || "0px"}` 为吸顶距离，`-${bottom || "0px"}` 为吸底距离。一定要是负的，正数表示延伸到了视窗外的距离，负数表示距离视窗顶部或者底部的距离。
+
+使用方式：
+
+```tsx
+<AutoFixed
+    // 距离顶部为 20px 吸顶
+    top="20px"
+    // 占位高度，也就是 children 的高度
+    height="20px"
+    // fixed状态改变时
+    onFixedChange={(isFixed) => {
+      console.log(`isFixed: ` + isFixed);
+    }}
+    // fixed状态需要添加的className
+    fixedClassName="hello"
+    // fixed状态需要添加的style
+    fixedStyle={{ color: "red" }}
+>
+    <div>
+        我是悬浮内容，高度 20px, 距离顶部为 20px 吸顶
+    </div>
+</AutoFixed>
+```
+
+实现效果：
+
+<img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/87bf4218d1294523b4286779e5338499~tplv-k3u1fbpfcp-watermark.image?" width="360" />
+
+
+可以看出 `一直吸顶` 、`滚动到设定位置吸顶` 、 `一直吸底` 、`滚动到设定位置吸底` 四个功能都可以正常工作。
+
+`滚动到设定位置吸底` 指的是，从底部向上滚动的时候，这个功能就是为了在划出屏幕区域的时候显示在底部。
+
+大家也可以打开 [示例](https://test-next13-alpha.vercel.app/components/auto-fixed) 自己去体验一下。
+
+## 结语
+
+这是之前在比较多的页面会用到的一个功能点，然后写了几次后，发现每次实现这个功能都有点复杂，于是封装了 `吸顶` 组件，本次写文章，就想着刚好可以完善一下，把 `吸底` 功能也开发出来，因为后续也有用到过不少次。
+
+> 创作不易，欢迎大家➕关注➕点赞➕收藏，有问题欢迎去[评论区](https://juejin.cn/post/7201099253497708599)提出，最后附上 [源码地址](https://github.com/hutaod/test-next13/blob/main/src/pages/components/auto-fixed.tsx)，可以 clone 代码自己尝试。
+
+
+
+

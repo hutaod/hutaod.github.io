@@ -1,0 +1,347 @@
+# React | 带你实现一个实用的 scrollTop  hook 组件
+
+> [本文也在掘金发布](https://juejin.cn/post/7200574584512741432)
+
+## 前言
+
+在很多应用场景，当我们滚动时我们可能需要获取页面滚动高度 `scrollTop` ，但是每次使用，都需要写一堆代码，比如监听滚动事件、注销滚动事件、节流逻辑、滚动结束等等。
+
+为了预防每次都写同样的逻辑、简化业务代码，本篇文章将一步一步实现一个完善的 `hook` 组件。
+
+## 实现
+
+为了让逻辑更清晰，分成几步（大家可以看着步骤试着自己去实现看看）：
+
+- 简单实现 `scrollTop` hook —— `useScrollTop`
+- 加入节流控制频率
+- 添加滚动状态
+- 添加滚动区域限制
+
+每个实现附上了 demo 链接（国内）和效果图，如果 demo 链接打不开，可以去 clone [案例项目](https://github.com/hutaod/test-next13).
+
+### 初步实现 useScrollTop
+
+主要思路：`didMount` 时监听 `scroll` 事件，`unMount` 时注销 `scroll` 事件。
+
+`useScrollTop` 初步代码；
+
+```ts
+import { useEffect, useState } from "react";
+
+export function useScrollTop() {
+  const [scrollTop, setScrollTop] = useState(0);
+  useEffect(() => {
+    function scrollFn(): void {
+      // 获取 scrollTop
+      const newScrollTop =
+        document.documentElement.scrollTop || window.pageYOffset || document.body.scrollTop;
+      // 更新 state
+      setScrollTop(newScrollTop);
+    }
+    // 监听 scroll 事件
+    window.addEventListener("scroll", scrollFn);
+    return (): void => {
+      // 注销 scroll 事件
+      window.removeEventListener("scroll", scrollFn);
+    };
+  }, []);
+  return scrollTop;
+}
+```
+
+效果如下（也可以点击去查看[demo](https://test-next13-alpha.vercel.app/hooks/use-scroll-top-step1)）：
+
+![5ic1i-n3p8x.gif](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/19cc61658bc445e2ad8b430db731e6a7~tplv-k3u1fbpfcp-watermark.image?)
+
+主要逻辑:
+
+- scrollFn：获取 scrollTop -> 更新 state
+- 监听 scroll 事件
+- 组件销毁时注销 scroll 事件
+
+### 节流
+
+使用 `lodash/throttle` 来完成节流，并使用 `scrollThreshold` 参数来控制节流时间。
+
+下面来看具体实现代码：
+
+```ts
+import throttle from "lodash/throttle";
+
+type Options = {
+  /**
+   * 滚动节流时间设置，默认 10ms
+   */
+  scrollThreshold?: number;
+}
+
+export function useScrollTop({ scrollThreshold = 10 }: Options = {}) {
+  const [scrollTop, setScrollTop] = useState(0);
+  useEffect(() => {
+    // scrollThreshold 大于 0 才有使用 throttle 的必要
+    const handleScroll = scrollThreshold > 0 ? throttle((newScrollTop: number) => {
+      setScrollTop(newScrollTop);
+    }, scrollThreshold, { leading: true, trailing: false }) : setScrollTop;
+
+    function scrollFn(): void {
+      // 获取 scrollTop
+      const newScrollTop =
+        document.documentElement.scrollTop || window.pageYOffset || document.body.scrollTop;
+      // 更新 state
+      handleScroll(newScrollTop);
+    }
+    // ...重复代码省略
+  }, []);
+  return scrollTop;
+}
+```
+
+效果如下（也可以点击去查看[demo](https://test-next13-alpha.vercel.app/hooks/use-scroll-top-step2)）：
+
+![ub3v8-wyfk3.gif](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/08403c09dc8e4ff686c3834f368a14f7~tplv-k3u1fbpfcp-watermark.image?)
+
+主要改动逻辑：
+
+- 新增 `handleScroll` 函数，函数需要被 `throttle` 包裹，把 `setScrollTop` 放入 `handleScroll`内部触发。
+- `scrollFn` 更新 state 位置，改成 `handleScroll(newScrollTop)`。
+
+
+### 添加滚动状态
+
+记录滚动状态，那么需要滚动结束事件，浏览器默认没有提供滚动事件，因此我们需要进行模拟实现。
+
+使用 `lodash/debounce` 来完成结束事件的防抖，一般来说不连续触发滚动事件后，则代表滚动结束。
+
+下面来看具体实现代码：
+
+```ts
+import debounce from "lodash/debounce";
+
+type Options = {
+  /**
+   * 滚动节流时间设置，默认 10ms
+   */
+  scrollThreshold?: number;
+  /**
+   * 滚动完成防抖时间设置，默认 500ms
+   */
+  scrollFinshedThreshold?: number;
+}
+
+export function useScrollTop({ scrollThreshold = 10, scrollFinshedThreshold = 500 }: Options = {}) {
+  const [state, setState] = useState({
+    scrollTop: 0,
+    scrolling: false,
+  });
+  useEffect(() => {
+    // 滚动状态
+    let scrolling = false;
+
+    // 触发 setScrollTop 统一到此处
+    function handleChangeScrollTop(newScrollTop: number): void {
+      // 更新外部状态
+      setState({
+        scrollTop: newScrollTop,
+        scrolling,
+      })
+    }
+
+    // scrollThreshold 大于 0 才有使用 throttle 的必要
+    const handleScroll = scrollThreshold > 0 ? throttle((newScrollTop: number) => {
+      handleChangeScrollTop(newScrollTop);
+    }, scrollThreshold, { leading: true, trailing: false }) : handleChangeScrollTop;
+
+    // 滚动结束事件
+    const scrollEnd = debounce(
+      (newScrollTop) => {
+        scrolling = false;
+        handleChangeScrollTop(newScrollTop);
+      },
+      scrollFinshedThreshold,
+      { leading: false, trailing: true }
+    );
+
+    function scrollFn(): void {
+      // ...
+      // 使用被 debounce 的函数来模拟滚动结束
+      scrollEnd(newScrollTop)
+    }
+    // ...
+  }, []);
+  return state;
+}
+```
+
+效果如下（也可以点击去查看[demo](https://test-next13-alpha.vercel.app/hooks/use-scroll-top-step3)）：
+
+![ub3v8-wyfk3.gif](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b4003f26414d4b21b92a63a8273d5cbd~tplv-k3u1fbpfcp-watermark.image?)
+
+主要改动逻辑：
+
+- 使用 `state` 字段存储状态，新增 `scrolling` 状态，用于记录滚动状态。
+- 新增 `handleChangeScrollTop` 函数，触发 `scrollTop` 改变和 `scrolling` 状态统一到此处。
+- 新增了 `useEffect` 内部状态 `scrolling` ，最终的值会同步到外部 `state`
+- 新增 `scrollEnd` 事件，结束事件在滚动结束完成才触发，`debounce` 可以用于模拟没有滚动事件结束的时候才执行，但是需要注意设置的 wait 时间，太小可能会执行多次，这里默认值为 `500ms`
+
+### 添加滚动区域限制及其他功能完善
+
+如果我只想滚动到某个区域才进行监听 `scrollTop`，那该如何实现呢？
+
+实现思路：
+
+- 我们使用添加 `scrollTop` 最小临界值（`minCriticalvalue`）和最大临界值（`maxCriticalvalue`）的方式来进行实现区域内触发功能
+- 当设置 `minCriticalvalue` 和 `maxCriticalvalue` 相同时，触发一次`scrollTop`改变，一般可用于判断是否显示某个模块。
+- 代码逻辑优化：`useScrollTop` 需要用于在子组件获取当前 `scrollTop` 时，可以在未进行滚动时初始化获取
+
+具体实现代码：
+
+```
+import { useEffect, useState } from "react";
+import throttle from "lodash/throttle";
+import debounce from "lodash/debounce";
+
+type Options = {
+  /**
+   * 滚动节流时间设置，默认 10ms
+   */
+  scrollThreshold?: number;
+  /**
+   * 滚动完成防抖时间设置，默认 500ms
+   */
+  scrollFinshedThreshold?: number;
+  /**
+   * 监听滚动区域最小 scrollTop 值，单位px，默认 0，也就是scrollTop >=0 就触发重新渲染
+   */
+  minCriticalvalue?: number;
+  /**
+   * 监听滚动最大 scrollTop 值，单位px，默认 100000 ，也就是scrollTop <=100000 就触发重新渲染
+   */
+  maxCriticalvalue?: number;
+};
+
+export function useScrollTop({
+  scrollThreshold = 10,
+  scrollFinshedThreshold = 500,
+  minCriticalvalue = 0,
+  maxCriticalvalue = 100000,
+}: Options = {}) {
+  const [state, setState] = useState({
+    scrollTop: 0,
+    scrolling: false,
+  });
+  useEffect(() => {
+    // 滚动状态
+    let scrolling = false;
+    // 获取初始值
+    let scrollTop =
+      document.documentElement.scrollTop ||
+      window.pageYOffset ||
+      document.body.scrollTop;
+
+    // 初始值不正确进行校验
+    if (
+      scrollTop !== state.scrollTop &&
+      scrollTop >= minCriticalvalue &&
+      scrollTop < maxCriticalvalue
+    ) {
+      setState({ scrollTop: scrollTop, scrolling: state.scrolling });
+    }
+
+    // 触发 setScrollTop 统一到此处
+    function handleChangeScrollTop(newScrollTop: number): void {
+      // 更新外部状态
+      setState({
+        scrollTop: newScrollTop,
+        scrolling,
+      });
+      // 更新内部状态
+      scrollTop = newScrollTop;
+    }
+
+    // scrollThreshold 大于 0 才有使用 throttle 的必要
+    const handleScroll =
+      scrollThreshold > 0
+        ? throttle(
+            (newScrollTop: number) => {
+              // 滚动中才触发，预防和结束事件冲突
+              if (scrolling) {
+                handleChangeScrollTop(newScrollTop);
+              }
+            },
+            scrollThreshold,
+            { leading: true, trailing: false }
+          )
+        : handleChangeScrollTop;
+
+    // 滚动结束事件
+    const scrollEnd = debounce(
+      (newScrollTop) => {
+        // 未结束才触发，不然又可能划出界限直接结束，导致上一次的 scrollEnd 还没结束。
+        if (scrolling) {
+          scrolling = false;
+          handleChangeScrollTop(newScrollTop);
+        }
+      },
+      scrollFinshedThreshold,
+      { leading: false, trailing: true }
+    );
+
+    function scrollFn(): void {
+      // 获取 scrollTop
+      const newScrollTop =
+        document.documentElement.scrollTop ||
+        window.pageYOffset ||
+        document.body.scrollTop;
+
+      if (
+        (newScrollTop <= minCriticalvalue && scrollTop >= minCriticalvalue) ||
+        (newScrollTop >= maxCriticalvalue && scrollTop <= maxCriticalvalue)
+      ) {
+        // 滚动出界限直接结束
+        scrolling = false;
+        handleChangeScrollTop(newScrollTop);
+        return;
+      } else if (
+        newScrollTop >= minCriticalvalue &&
+        newScrollTop <= maxCriticalvalue
+      ) {
+        // 在界限内滚动，才触发改变事件
+        scrolling = true;
+        // 更新 state
+        handleScroll(newScrollTop);
+        // 使用被 debounce 的函数来模拟滚动结束
+        scrollEnd(newScrollTop);
+      }
+    }
+    // 监听 scroll 事件
+    window.addEventListener("scroll", scrollFn);
+    return (): void => {
+      // 注销 scroll 事件
+      window.removeEventListener("scroll", scrollFn);
+    };
+  }, []);
+  return state;
+}
+```
+
+效果如下（也可以点击去查看[demo](https://test-next13-alpha.vercel.app/hooks/use-scroll-top)）：
+
+![7izmx-qm6kx.gif](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d1550201d17d4eb8b30c98462419fb2d~tplv-k3u1fbpfcp-watermark.image?)
+
+这样就实现了只有在设定的滚动区域才会触发 `scrollTop` 改变。
+
+主要实现逻辑：
+
+1. 内部记录传递给外部的 `scrollTop`。
+2. 调整了 `scrollFn` 实现逻辑：
+    1. `scrolling` 状态设置位置调整是重点，不能放在最前面了。
+    2. 使用内部记录的 `scrollTop`，这个在这里相当于滚动前的 `scrollTop`，`newScrollTop` 是现在滚动的 scrollTop，这样可以判断是否滚动出设置界限，如果滚动了界限就直接改变 `scrolling` 状态为 false， 并且通知外部修改 `scrollTop`。
+    3. 在设置滚动界限内，则触发 `handleScroll` 和 `scrollEnd` 事件。
+3. `handleScroll` 和 `scrollEnd` 都需要判断 `scrolling` 状态，因为这两个函数是异步执行的（抖动和截流），而前面描述 `scrollFn` 函数中第2点逻辑是会同步修改状态的。
+
+
+## 结语
+
+我们一步一步实现了一个相对完整的 `useScrollTop` hook 组件，其实大部分实现也可以抽离出来，封装成一个JS类，这样在 vue 或者其他前端框架上也可以正常的使用了。
+
+最后留一个思考点：当前都是基于整个页面的滚动的，如果是局部div内部滚动，那么该如何实现这个功能？

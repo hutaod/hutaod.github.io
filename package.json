@@ -12,6 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "classnames": "^2.3.2",
+    "lodash": "^4.17.21",
     "next": "^13.1.6",
     "nextra": "^2.2.14",
     "nextra-theme-docs": "^2.2.14",
