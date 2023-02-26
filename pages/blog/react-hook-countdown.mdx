@@ -1,0 +1,270 @@
+# React实践｜实现一个倒计时hook组件
+
+## 前言
+
+本篇文章主要实现一个无样式的倒计时 hook 组件，通常不同地方的倒计时样式都不同，但倒计时的逻辑基本是都是一样的，因此可以抽离成一个工具方法或者一个 hook 组件，这样让倒计时逻辑可以进行通用，样式让业务方具体去实现。
+
+## 思路
+
+倒计时可能需要显示剩余时间的单位有：天、时、分、秒、毫秒，可能只需显示一个，也可能都需要显示。
+
+注意细节：
+
+- 只显示某一单位的时间或者需要显示的最大单元时间，需要可以大于正常时间最大限制，比如要剩余 100 小时 58 分时，小时需要可以大于 23，分钟不能大于 59 。
+- 需要可以设置是否显示毫秒，1s等于1000ms，但人的反应时间是**0.2s～0.3s**，因此毫秒以百为单位显示，显示毫秒适用于秒杀类活动场景。
+
+## 实现
+
+### 定义参数和返回值
+
+先来定义好参数：
+
+```ts
+export interface CountDownOptions {
+  /** 截止时间，时间戳 */
+  deadlineTime: number;
+  /** 是否需要毫秒 */
+  showMillisecond?: boolean;
+}
+```
+
+参数只需要倒计时截止时间以及是否需要显示毫秒。
+
+再定义一下需要获取的返回值：
+
+```ts
+export interface TimeInfo {
+  /** 天 */
+  day: number;
+  /** 小时 */
+  hours: number;
+  /** 补零后的小时 */
+  hoursStr: string;
+  /** 分钟 */
+  minutes: number;
+  /** 补零后的分 */
+  minutesStr: string;
+  /** 秒 */
+  seconds: number;
+  /** 补零后的秒 */
+  secondsStr: string;
+  /** 毫秒 */
+  milliseconds?: number;
+  /** 补零后的毫秒 */
+  millisecondsStr?: string;
+  /** 倒计时状态 pending-初始化状态 runing-进行中 end-已结束 */
+  status: "pending" | "runing" | "end";
+}
+```
+
+`day` 、 `hours` 、 `minutes` 、 `seconds` 、 `milliseconds` 都是剩余的多少数量（1小时10分钟，那么就是剩余70分钟），没有做限制，`hoursStr`、`minutesStr`、`secondsStr`、`millisecondsStr` 才做限制，比如剩下 1天10小时10分钟10秒100毫秒，那么显示结果如下：
+
+```js
+{
+    day: 1,
+    hours: 34, // 1 * 24 + 10
+    hoursStr: "10",
+    minutes: 2050, // (1 * 24 + 10) * 60 + 10
+    minutesStr: "10",
+    seconds: 123010, // ((1 * 24 + 10) * 60 + 10) * 60 + 10
+    secondsStr: "10",
+  }
+```
+
+### 具体实现
+
+下面来看具体实现代码。
+
+先实现一个简单的补零函数，JS字符串本身也有补零函数，也可以直接使用的，不过也需要转换类型。
+
+```ts
+// 格式化数据，这里就是补零
+function formate(time: number): string {
+  return `${time < 10 ? "0" : ""}${time}`;
+}
+```
+
+工具方法——清除倒计时数据数据信息：
+
+```ts
+function clearCountdownInfo(showMillisecond = false, status: TimeInfo["status"]): TimeInfo {
+  const timeInfo: TimeInfo = {
+    day: 0,
+    hours: 0,
+    hoursStr: "00",
+    minutes: 0,
+    minutesStr: "00",
+    seconds: 0,
+    secondsStr: "00",
+    status: status || "end",
+  };
+
+  if (showMillisecond) {
+    timeInfo.milliseconds = 0;
+    timeInfo.millisecondsStr = "0";
+  }
+
+  return timeInfo;
+}
+```
+
+关键工具方法——计算倒计时返回的数据信息：
+
+```ts
+function computeCountdownInfo(
+  remainTime: number,
+  showMillisecond = false
+): TimeInfo {
+  // 剩余时间小于说明结束，直接清空
+  if (remainTime < 0) {
+    return clearCountdownInfo(showMillisecond);
+  }
+
+  // 这里用了一个比较笨的方法，一个个进行计算，后续可以优化试试看
+  const day = Math.floor(remainTime / (24 * 60 * 60));
+  const hours = Math.floor((remainTime / (60 * 60)) % 24);
+  const hoursStr = formate(hours);
+  const minutes = Math.floor((remainTime / 60) % 60);
+  const minutesStr = formate(minutes);
+  const seconds = Math.floor(remainTime % 60);
+  const secondsStr = formate(seconds);
+
+  // 组合成需要返回的时间信息
+  const timeInfo: TimeInfo = {
+    day,
+    hours,
+    hoursStr,
+    minutes,
+    minutesStr,
+    seconds,
+    secondsStr,
+    end: false,
+  };
+
+  // 需要显示毫秒逻辑处理
+  if (showMillisecond) {
+    const milliseconds = Math.floor(remainTime * 1000);
+    // 只取首位
+    const millisecondsStr = String(milliseconds).slice(-3);
+    timeInfo.milliseconds = milliseconds;
+    timeInfo.millisecondsStr = millisecondsStr;
+  }
+
+  return timeInfo;
+}
+```
+
+核心逻辑 —— `useCountdown` hook 组件：
+
+```ts
+export const useCountdown = (options: CountDownOptions) => {
+  // 首次初始化数据，显示清除的数据
+  const [timeInfo, setTimeInfo] = useState<TimeInfo>(
+    clearCountdownInfo(options.showMillisecond, "pending")
+  );
+  useEffect(() => {
+    let timer = 0;
+
+    function countdown() {
+      const remainTime = computeRemainTime(options.deadlineTime);
+      // 剩余时间大于 0 才开始倒计时
+      if (remainTime > 0) {
+        // 未结束时直接定时下一次在执行判断 countdown
+        timer = setTimeout(
+          countdown,
+          options.showMillisecond ? 100 : 1000 // 毫秒级则修改定时器时间
+        );
+      }
+      const data = computeCountdownInfo(remainTime, options.showMillisecond);
+      setTimeInfo(data);
+    }
+
+    // 开始倒计时
+    countdown();
+
+    return () => {
+      // 清除定时器
+      timer && clearTimeout(timer);
+    };
+  }, [options.deadlineTime, options.showMillisecond]);
+  return timeInfo;
+};
+```
+
+上面需要注意一下，服务端渲染的情况不要首次进行render的时候初始化数据，会和服务端已经不一致导致 hydrate 报错。
+
+客户端渲染的可以在render的时候初始化代码：
+
+```ts
+// 渲染时获取一次剩余时间
+const remainTime = useMemo(
+    () => computeRemainTime(options.deadlineTime),
+    [options.deadlineTime]
+);
+// 首次初始化数据，以防页面闪烁
+const [timeInfo, setTimeInfo] = useState<TimeInfo>(
+    computeCountdownInfo(remainTime)
+);
+```
+
+一个完整的倒计时组件已经完成，我们来看一下效果，也可以[点击去demo查看效果](https://test-next13-alpha.vercel.app/hooks/use-countdown)（gif有点奇怪，倒计时结束时等一会gif才重置导致的异常）：
+
+![70ol3-0bbad.gif](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/21bcf11568c344fd838316998e739670~tplv-k3u1fbpfcp-watermark.image?)
+
+### 逻辑抽离，适配其他前端框架
+
+最后我们再把核心运行逻辑 `countdown` 函数抽离一下，让其他前端框架也可以轻易复用：
+
+```ts
+function createCountdown(setTimeInfo: (timeInfo: TimeInfo) => void, options: CountDownOptions) {
+    let timer = 0;
+    function countdown() {
+        const remainTime = computeRemainTime(options.deadlineTime);
+        // 剩余时间大于 0 才开始倒计时
+        if (remainTime > 0) {
+            // 未结束时直接定时下一次在执行判断 countdown
+            timer = setTimeout(
+                  countdown,
+                  options.showMillisecond ? 100 : 1000 // 毫秒级则修改定时器时间
+            );
+        }
+        const data = computeCountdownInfo(remainTime, options.showMillisecond);
+        setTimeInfo(data);
+    }
+    const getTimer = () => timer;
+    return { getTimer, countdown }
+}
+```
+
+React 中使用：
+
+```ts
+export const useCountdown = (options: CountDownOptions) => {
+  // ...省略
+  useEffect(() => {
+    // 获取倒计时
+    const { getTimer, countdown } = createCountdown(setTimeInfo, options);
+    // 开始倒计时
+    countdown();
+    return () => {
+      // 清除定时器
+      getTimer() && clearTimeout(getTimer());
+    };
+  }, [options.deadlineTime, options.showMillisecond]);
+  return timeInfo;
+};
+```
+
+使用 vue 的同学也可以去试试。
+
+## 总结
+
+从梳理需要实现的效果，然后再来实现具体的内容，逻辑的清晰可以让代码写得更好，这个倒计时组件也是我几年前写的一个组件了，但原本代码比较复杂一些，简化了很多代码，重新进行了逻辑调整和优化，把核心逻辑都进行了抽离，让每个函数都可以去服用。
+
+> 创作不易，欢迎大家➕关注➕点赞➕收藏，有问题欢迎评论区提出。
+
+源代码地址: [useCountdown](https://github.com/hutaod/test-next13/blob/main/src/components/hooks/use-countdown.ts)
+
+最后留下一个思考：
+
+> 其实最后还有一个优化点，现在是每秒更新都会造成重新渲染，但是如果我需要显示最小单位是分钟，那么每分钟重新渲染会更合适，这里可以通过新增参数来控制 `setTimeInfo` 频率，也可以使用 `Proxy` 来进行代理处理，自动判断是否获取了对应的数据，如果是用于B端或者C端，那么使用前者会更好，毕竟有兼容性问他，如果自己使用，不用关心太多兼容性问题，可以尝试后者，这是一个趋势。

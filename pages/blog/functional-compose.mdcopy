@@ -1,0 +1,181 @@
+# 函数式编程之函数组合｜理解和推导compose
+
+---
+theme: orange
+---
+本篇文章是[JavaScript 函数式编程](https://juejin.cn/book/7173591403639865377) 学习系列第四篇，感兴趣也可以先去看看前几篇内容：
+
+- [一文理解JavaScript中的函数式编程的概念](https://juejin.cn/post/7201800584311455799)
+- [JavaScript数据类型对函数式编程的影响](https://juejin.cn/post/7201879428087349304)
+- [不可变数据方案之immer.js原理探索](https://juejin.cn/post/7202506471899873339)
+
+突发感想：学习函数式编程的过程，我会经常想到以前写代码的场景，然后发现真的写了很多多余且不好维护的代码，大家有时间可以认真去学一下函数式编程，然后再去对比一下之前写的代码，你会发现，函数式编程中的编程技巧真是一个好东西。
+
+## 前言
+
+函数式编程带给我们的不只是一套理论，从这个理论中，衍生出了一套编程技巧，值得学习，它也能让我们的代码质量提升，不管是代码阅读性和可维护性、还是性能等多方面因素。其实大家现在去看很多框架源码的实现，会发现代码风格都在往函数式编程这个方向演变。
+
+其实我们平时也不知不觉用到了函数式编程中的很多技巧也比如高阶函数，redux 中的 compose 等等，这些都属于函数式编程的运用方式，也是体现出函数式编程的核心——函数组合。
+
+## 函数组合的概念
+
+我们函数组合的概念：每一个函数的输出可以是另一个尚未可知的函数的输入
+
+代码表现其实也就是这样：
+
+```js
+func1(
+    func2(
+        func3(
+            func4(value)
+        )
+    )
+);
+```
+
+但这样嵌套下去，看起来有点懵，特别嵌套层数越来越多的时候，因此出现了 compose 函数，让多个函数可以可以并行：
+
+```
+compose(
+    func1,
+    func2,
+    func3,
+    func4
+)(value)
+```
+
+这样看起来顺序感就强烈了起来，是不是？
+
+## 理解和推导compose
+
+我们先来看一下我们常用的 reduce 函数。
+
+比如我们一串由数字组合的数字，每个数字代表当天的订单数，我们需要计算订单总数，我们可以使用 reduce 函数来计算：
+
+```js
+const orderQuantityList = [1, 2, 3];
+const totalQuantity = orderQuantityList.reduce((result, item) => {
+    result += item;
+    return result;
+}, 0)
+```
+代码好像写得有些多余？不就一个加法吗？但实际上如果处理的数据复杂一点，我们还真会这样使用 `reduce` 。
+
+可是这上面看起来与函数组合有啥关系？
+
+下面我们改变一下代码：
+
+```js
+const orderQuantityList = [1, 2, 3];
+const add = (a, b) => a + b;
+const totalQuantity = orderQuantityList.reduce(add, 0)
+```
+
+是不是有些明确了？我好像也没看到函数怎么组合啊，就看到 reduce 函数包裹了一个 add 函数吧？
+
+我们来看一下这段代码的实际执行流程：
+
+![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8a87b741cc1645c5b72cee77d9999478~tplv-k3u1fbpfcp-watermark.image?)
+
+我们从 reduce 运行回调函数的过程，可以发现一些特征：
+
+- reduce 的回调函数在做参数组合：首次组合初始值和arr的首位参数作为函数的参数，后续每次都是用上一次的执行接口和arr下一个参数作为函数参数。
+- reduce 过程构成了它回调函数的 `pipeline`（管道）：比如这里的add函数执行后把数据传递给add函数继续执行，直到数组遍历结束。
+
+那我们如果我们把数组中的数据变成函数：
+
+```js
+const add3 = (a) => a + 3;
+const multiply4 = (a) => a * 4;
+const divide2 = (a) => a / 2;
+[add3, multiply4, divide2].reduce((value, func) => {
+    return func(value)
+}, 1);
+// 输出 8
+```
+
+这时候利用 `reduce` 实现了函数的组合运行，先运行 `add3` ，运行结束后把结果传递给 `multiply4` ，然后运行 `multiply4`  函数，运行结束后把结果传递给 `divide2` ，再然后运行 `divide2`  函数，运行结束后输出结果。
+
+流程如图所示：
+
+
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b3660ddef18b4e289c1edfa3f83aa970~tplv-k3u1fbpfcp-watermark.image?)
+
+图中第二列去掉函数注入的过程，看起来就和 pipe 函数的执行过程类似了，那是不是可以用 reduce 实现 pipe 函数？当然可以，下面来试一下：
+
+```js
+function pipe(funcs) {
+    return (initInput) => {
+        return funcs.reduce((input, func) => {
+            return func(input);
+        }, initInput);
+    }
+}
+```
+
+看起来是不是很简单，和前面直接运行的代码也差不多，运行一下看看：
+
+```js
+pipe([add3, multiply4, divide2])(1); // 输出 8
+```
+
+参数传递方式可以优化一下，让 `pipe([func1, func2, func3])(value)` 变成 `pipe(func1, func2, func3)(value)`，其实也就改一下参数：
+
+```diff
+- function pipe(...funcs) {
++ function pipe(...funcs) {
+    return (initInput) => {
+        return funcs.reduce((input, func) => {
+            return func(input);
+        }, initInput);
+    }
+}
+```
+
+说好的函数组合呢？不是 redux 中的 compose 函数？
+
+其实 `compose` 中函数参数传递 和 `pipe` 相反，因此，我们调用相反的顺序就是 `compose` ：
+
+```diff
+function compose(...funcs) {
+    return (initInput) => {
+-       return funcs.reduce((input, func) => {
++       return funcs.reduceRight((input, func) => {
+            return func(input);
+        }, initInput);
+    }
+}
+```
+
+来使用一下：
+
+```
+compose(divide2, multiply4, add3)(1); // 输出 8
+```
+
+哇！原来 js 中实现这么简单啊，这时候要是是面试的时候，面试官可能需要你不使用 `reduce` 或者 `reduceRight` ，那么可以自己实现一个 `reduce` 或者 `reduceRight`。
+
+```js
+function reduce(funcs, callback, initValue) {
+    for(let i = 0; i < funcs.length; i++) {
+        const func = funcs[i];
+        initValue = callback(initValue, func);
+    }
+}
+
+function compose(...funcs) {
+    return (initInput) => {
+        return reduce(funcs.reverse(), (input, func) => {
+            return func(input);
+        }, initInput);
+    }
+}
+```
+
+## 总结
+
+其实刚开始想一文把函数组合的相关技巧的理解和实现都写到一篇文章的，但发现参与日新计划这段时间根本不现实😓，后续还是分开输出文章，每一篇尽量会注意质量。
+
+参考：
+
+- [JavaScript 函数式编程实践指南](https://juejin.cn/book/7173591403639865377)
