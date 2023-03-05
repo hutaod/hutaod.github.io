@@ -11,7 +11,7 @@
 
 ## 为什么要使用 Turborepo 来搭建组件库？
 
-Turborepo 于 2021 年12月出世，是一个针对 JavaScript 和 TypeScript 代码库优化的智能 `构建系统`。它倡导使用 monorepo 的方式来管理你的工程，具体介绍可以去看看[官方文档](https://turbo.build/repo)，官方文档上很详细，社区上也可以不少关于介绍它的文章。
+Turborepo 于 2021 年 12 月出世，是一个针对 JavaScript 和 TypeScript 代码库优化的智能 `构建系统`。它倡导使用 monorepo 的方式来管理你的工程，具体介绍可以去看看[官方文档](https://turbo.build/repo)，官方文档上很详细，社区上也可以不少关于介绍它的文章。
 
 Turborepo 其中提供了一个创建组件库的[模板工程](https://github.com/vercel/turbo/tree/main/examples/design-system)，本篇文章主要就讲解用这个模板工程来创建自己的组件库的过程，模板工程的 Readme 上也有使用说明，不过不是很完善，很多没有说清楚，会踩不少坑。
 
