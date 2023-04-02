@@ -1,8 +1,6 @@
 # Next.js了解篇｜一文带你梳理清楚Next.js的功能
 
-> 本篇文章也同步到了掘金：https://juejin.cn/post/7206261082452639802
-
-> 前面写了好几篇关于 Next.js 的文章，虽然都不长，但都是实际使用过程中的一些经验分享，不过这些文章对于不了解 Next.js 的人来说，可能很不友好，我也一直想重新梳理一下 Next.js 使用的方案。因此打算好好写一下 Next.js 相关运用，并整理到一个专栏，主要内容会从了解 Next.js 开始，然后逐渐搭建一个完整的项目模板，让没怎么接触过 Next.js 甚至 React 的小伙伴也能从中逐渐学习到一些东西，当然这个时间周期可能会比较长。感兴趣的可以关注一下作者。
+> 本篇文章首发于掘金：https://juejin.cn/post/7206261082452639802
 
 ## 前言
 
@@ -101,7 +99,7 @@ export * from "../views/home";
 渲染模式是决定页面性能很重要的因素，也是 Next.js 最核心的一部分，之前写了几篇相关的文章，这里就不进行再次说明了，建议去看看：
 
 -   [理解前端基础渲染模式｜CSR、SSR、同构、静态化](https://juejin.cn/post/7204085076504920119)
--   [# 前端各种渲染模式性能对比分析](https://juejin.cn/post/7205875448575262776)
+-   [前端各种渲染模式性能对比分析](https://juejin.cn/post/7205875448575262776)
 -   [Next.js性能优化之ISR渲染入门和原理探索](https://juejin.cn/post/7199812069050171452)
 
 ### 可扩展配置
@@ -163,9 +161,9 @@ export function reportWebVitals(metric: NextWebVitalsMetric) {
 
 ![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/627f3e3d17434cef90abcace7ffd747d~tplv-k3u1fbpfcp-watermark.image?)
 
-其实 CRA 放弃没放弃，关系也不是特别大，反正也可以暴露了 webpack 配置，但需要自己定制的内容太多，而且并没不能完全的去体现出 React 的能力，比如不支持服务端渲染，也不支持 React 18 中的 Serevr Component/Client Component/Shared Component 等等新概念，因此 `CAR` 还是会逐渐被 `Next.js` 或者 `Gatsby.js` 给逐渐取代。
+其实 CRA 放弃没放弃，关系也不是特别大，反正也可以暴露了 webpack 配置，但需要自己定制的内容太多，而且并没不能完全的去体现出 React 的能力，比如不支持服务端渲染，也不支持 React 18 中的 Serevr Component/Client Component/Shared Component 等等新概念，因此 `CAR` 还是会逐渐被 `Next.js` 或者 `Gatsby.js` 给逐渐取代，不过 `Next.js` 比 `Gatsby.js` 的扩展性更好，基本上 `Gatsby.js` 可以做的，`Next.js` 都可以做，反过来却不行。
 
-`CAR` 的结果如此，后续的前端开发的方向应该会更偏向 `Next.js` 或者 `Gatsby.js`，不过这些主要是在C端或者B工程的市场会表现更好，在不那么重视首屏性能的管理端应用来说，影响不会那么大。
+`CAR` 的结果如此，后续的前端开发的方向应该会更偏向 `Next.js` ，不过这些主要是在C端或者B工程的市场会表现更好，在不那么重视首屏性能的管理端应用来说，影响不会那么大。
 
 ## 最后
 
